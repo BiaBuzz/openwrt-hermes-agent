@@ -1,0 +1,107 @@
+name: Build APK Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Target architecture (x86_64, aarch64, or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - x86_64
+          - aarch64
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        arch: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.arch == 'all' && fromJSON('["x86_64", "aarch64"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', github.event.inputs.arch)) || fromJSON('["x86_64", "aarch64"]') }}
+        include:
+          - arch: x86_64
+            sdk_url: https://downloads.openwrt.org/releases/25.12.4/targets/x86/64/openwrt-sdk-25.12.4-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - arch: aarch64
+            sdk_url: https://downloads.openwrt.org/releases/25.12.4/targets/mediatek/filogic/openwrt-sdk-25.12.4-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /opt/ghc /opt/hostedtoolcache /usr/local/lib/android /usr/share/dotnet /usr/share/swift
+          sudo docker system prune -af --volumes || true
+          sudo apt-get clean
+          df -h
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential ccache file g++ gawk gettext git \
+            libelf-dev libncurses5-dev libncursesw5-dev libssl-dev python3 python3-dev \
+            python3-setuptools rsync subversion swig time unzip wget xsltproc zlib1g-dev \
+            gcc-multilib g++-multilib clang flex bison bzip2 zstd
+
+      - name: Download SDK
+        run: |
+          wget -q "${{ matrix.sdk_url }}" -O sdk.tar.zst
+          tar --use-compress-program=unzstd -xf sdk.tar.zst
+          SDK_DIR=$(ls -d openwrt-sdk-* | head -1)
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
+
+      - name: Add package feed
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          echo "src-git hermeswrt $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> feeds.conf.default
+          ./scripts/feeds update hermeswrt
+          ./scripts/feeds install hermes-agent hermes-vendor luci-app-hermeswrt
+
+      - name: Configure
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          make defconfig
+
+      - name: Build packages
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          make package/hermes-agent/compile V=s
+          make package/hermes-vendor/compile V=s
+          make package/luci-app-hermeswrt/compile V=s
+
+      - name: Collect APKs
+        run: |
+          mkdir -p artifacts/${{ matrix.arch }}
+          find ${{ env.SDK_DIR }}/bin/packages -name "hermes-agent_*.apk" -exec cp {} artifacts/${{ matrix.arch }}/ \;
+          find ${{ env.SDK_DIR }}/bin/packages -name "hermes-vendor_*.apk" -exec cp {} artifacts/${{ matrix.arch }}/ \;
+          find ${{ env.SDK_DIR }}/bin/packages -name "luci-app-hermeswrt_*.apk" -exec cp {} artifacts/${{ matrix.arch }}/ \;
+          ls -la artifacts/${{ matrix.arch }}/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-hermes-agent-${{ matrix.arch }}
+          path: artifacts/${{ matrix.arch }}/
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

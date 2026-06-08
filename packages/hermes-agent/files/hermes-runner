@@ -1,0 +1,24 @@
+#!/bin/sh
+# Hermes Agent runner for OpenWrt
+export HOME=/root
+export HERMES_HOME=/root/.hermes
+export NODE_PATH=/usr/lib/hermes-agent/node/lib/node_modules
+export PATH="/usr/lib/hermes-agent/node/bin:$PATH"
+
+HERMES_DIR="/usr/lib/hermes-agent"
+VENDOR_DIR="/usr/lib/hermes-agent/vendor"
+CONFIG_FILE="/etc/hermes-agent/config.yaml"
+
+# Create hermes home if needed
+mkdir -p "$HERMES_HOME/workspace" "$HERMES_HOME/logs"
+
+# Copy default config if none exists
+if [ ! -f "$HERMES_HOME/config.yaml" ] && [ -f "$CONFIG_FILE" ]; then
+    cp "$CONFIG_FILE" "$HERMES_HOME/config.yaml"
+fi
+
+# Set vendor path for Python
+export PYTHONPATH="$VENDOR_DIR:$PYTHONPATH"
+
+# Run hermes gateway
+exec python3 "$HERMES_DIR/cli.py" gateway run --replace "$@"

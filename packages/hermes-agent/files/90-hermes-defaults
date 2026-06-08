@@ -1,0 +1,4 @@
+#!/bin/sh
+# Hermes Agent defaults for OpenWrt
+[ -d /root/.hermes ] || mkdir -p /root/.hermes/workspace /root/.hermes/logs
+exit 0

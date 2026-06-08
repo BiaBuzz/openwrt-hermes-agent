@@ -1,0 +1,11 @@
+{
+    "luci-app-hermeswrt": {
+        "description": "Grant access to HermesWRT management",
+        "read": {
+            "uci": ["hermes"]
+        },
+        "write": {
+            "uci": ["hermes"]
+        }
+    }
+}

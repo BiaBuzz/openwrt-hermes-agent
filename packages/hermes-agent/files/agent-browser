@@ -1,0 +1,7 @@
+#!/bin/sh
+# Hermes Agent browser stub for headless OpenWrt devices
+# Exits 0 for install commands (prevents auto-install), 1 for others
+case "$1" in
+    install*) exit 0 ;;
+    *) exit 1 ;;
+esac
