@@ -58,8 +58,8 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           echo "src-git hermeswrt $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> feeds.conf.default
-          ./scripts/feeds update hermeswrt
-          ./scripts/feeds install hermes-agent hermes-vendor luci-app-hermeswrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
       - name: Configure
         working-directory: ${{ env.SDK_DIR }}
