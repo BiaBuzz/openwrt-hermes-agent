@@ -21,7 +21,7 @@ define Package/hermes-agent
   CATEGORY:=Utilities
   TITLE:=Hermes Agent — AI agent for OpenWrt
   URL:=https://hermes-agent.nousresearch.com
-  DEPENDS:=+python3 +python3-cryptography +python3-requests +python3-yaml            +python3-jinja2 +python3-click +python3-dotenv +python3-psutil            +python3-certifi +python3-chardet +python3-idna +python3-urllib3            +libc +libpthread
+  DEPENDS:=+python3 +python3-cryptography +python3-requests +python3-yaml            +python3-jinja2 +python3-click +python3-dotenv +python3-psutil            +python3-certifi +python3-chardet +python3-idna +python3-urllib3            @LIBC_DEPENDS +libpthread
 endef
 
 define Package/hermes-agent/description
